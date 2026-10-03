@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+ENGINE="${CONTAINER_ENGINE:-docker}"
+IMAGE="${GENIE_IMAGE:-hp-ilo-genie:0.1.0}"
+NAME="${GENIE_NAME:-hp-ilo-genie}"
+WEB_PORT="${GENIE_PORT:-8088}"
+TLS_PORT="${GENIE_HTTPS_PORT:-8443}"
+usage() {
+  cat <<'EOF'
+HP iLO Genie — legacy iLO SSL bridge + modern browser console
+
+  ./hp-ilo-genie build
+  ./hp-ilo-genie start <ilo-ip-or-hostname>
+  ./hp-ilo-genie status
+  ./hp-ilo-genie logs
+  ./hp-ilo-genie doctor
+  ./hp-ilo-genie relay <ilo-ip-or-hostname> [relay options]
+  ./hp-ilo-genie stop
+  ./hp-ilo-genie export [image.tar]
+
+Environment: GENIE_PORT=8088, GENIE_HTTPS_PORT=8443,
+  ILO_PORT=443, ILO_CIPHER=DES-CBC3-SHA, CONTAINER_ENGINE=docker.
+  GENIE_SESSION_FILE optionally imports an existing iLO session from a file.
+  GENIE_NAME and GENIE_IMAGE override the container name and image.
+EOF
+}
+own_container() {
+  local label
+  label="$($ENGINE inspect --format '{{index .Config.Labels "io.hp-ilo-genie.managed"}}' "$NAME" 2>/dev/null)" || { echo "No $NAME container exists." >&2; exit 1; }
+  [[ "$label" == true ]] || { echo "Refusing to operate on an unrelated container named $NAME." >&2; exit 1; }
+}
+case "${1:-help}" in
+  build) "$ENGINE" build -t "$IMAGE" . ;;
+  start)
+    HOST="${2:-${ILO_HOST:-}}"
+    [[ -n "$HOST" ]] || { usage; exit 1; }
+    if [[ -n "${GENIE_SESSION_FILE:-}" && ! -r "$GENIE_SESSION_FILE" ]]; then echo 'Cannot read GENIE_SESSION_FILE.' >&2; exit 1; fi
+    for port in "$WEB_PORT" "$TLS_PORT"; do
+      [[ "$port" =~ ^[0-9]+$ ]] && (( port > 1023 && port < 65536 )) || { echo 'Host ports must be 1024–65535.' >&2; exit 1; }
+    done
+    if "$ENGINE" inspect "$NAME" >/dev/null 2>&1; then
+      echo "Container $NAME already exists. Use '$0 stop' before changing its configuration." >&2; exit 1
+    fi
+    "$ENGINE" run -d --name "$NAME" --label io.hp-ilo-genie.managed=true \
+      --cap-drop ALL --security-opt no-new-privileges --read-only \
+      --tmpfs /tmp:rw,noexec,nosuid,size=32m \
+      -p "127.0.0.1:${WEB_PORT}:8088" -p "127.0.0.1:${TLS_PORT}:8443" \
+      -e "ILO_HOST=$HOST" -e "ILO_PORT=${ILO_PORT:-443}" -e "ILO_CIPHER=${ILO_CIPHER:-DES-CBC3-SHA}" \
+      -e ILO_SESSION_FILE=/tmp/ilo-genie.session \
+      -e "ILO_CONNECT_HOST=${ILO_CONNECT_HOST:-$HOST}" -e "ILO_CONSOLE_PORT=${ILO_CONSOLE_PORT:-}" \
+      -v "${NAME}-certificates:/data" "$IMAGE"
+    if [[ -n "${GENIE_SESSION_FILE:-}" ]]; then
+      "$ENGINE" exec -i "$NAME" sh -c 'umask 077; cat > /tmp/ilo-genie.session' < "$GENIE_SESSION_FILE"
+    fi
+    echo "Console:    http://localhost:${WEB_PORT}/"
+    echo "Management: https://localhost:${TLS_PORT}/"
+    echo "Sign in on the console page with your iLO credentials."
+    ;;
+  stop) own_container; "$ENGINE" stop "$NAME"; "$ENGINE" rm "$NAME" ;;
+  logs) own_container; "$ENGINE" logs --tail 80 -f "$NAME" ;;
+  status) own_container; "$ENGINE" inspect --format '{{.State.Status}} {{if .State.Health}}{{.State.Health.Status}}{{end}}' "$NAME" ;;
+  doctor) own_container; "$ENGINE" exec "$NAME" node scripts/doctor.cjs ;;
+  relay) shift; exec python3 scripts/lan-relay.py "$@" ;;
+  export) "$ENGINE" save -o "${2:-hp-ilo-genie-0.1.0.tar}" "$IMAGE" ;;
+  help|--help|-h) usage ;;
+  *) usage; exit 1 ;;
+esac

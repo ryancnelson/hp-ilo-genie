@@ -1,0 +1,16 @@
+HP iLO Genie 0.1.0
+Copyright 2026 hp-ilo-genie contributors
+Licensed under GNU AGPL version 3 or later. See LICENSE.
+
+Remote-console decoding, encryption, handshake, and input encoding are provided
+by ilo-protocol 1.0.0-beta by Alba Mendez / mildsunrise, AGPL-3.0-or-later:
+https://github.com/mildsunrise/ilo-protocol
+
+The image includes LibreSSL 3.3.6, distributed under its upstream ISC/BSD-style
+and OpenSSL licenses. Its complete original source archive, including license
+notices, is included at /usr/local/share/hp-ilo-genie/libressl-3.3.6.tar.gz.
+https://www.libressl.org/
+
+Other dependencies retain their licenses in node_modules and the operating
+system's /usr/share/doc directories. This is an independent utility, not an
+HP/HPE product or supported firmware upgrade.

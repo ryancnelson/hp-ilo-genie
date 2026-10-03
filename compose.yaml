@@ -1,0 +1,22 @@
+services:
+  genie:
+    build: .
+    image: hp-ilo-genie:0.1.0
+    environment:
+      ILO_HOST: ${ILO_HOST:?Set ILO_HOST to your iLO address}
+      ILO_PORT: ${ILO_PORT:-443}
+      ILO_CIPHER: ${ILO_CIPHER:-DES-CBC3-SHA}
+      ILO_CONNECT_HOST: ${ILO_CONNECT_HOST:-${ILO_HOST}}
+      ILO_CONSOLE_PORT: ${ILO_CONSOLE_PORT:-}
+    ports:
+      - "127.0.0.1:${GENIE_PORT:-8088}:8088"
+      - "127.0.0.1:${GENIE_HTTPS_PORT:-8443}:8443"
+    volumes:
+      - certificates:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+volumes:
+  certificates:

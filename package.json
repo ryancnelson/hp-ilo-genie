@@ -1,0 +1,27 @@
+{
+  "name": "hp-ilo-genie",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local browser console and TLS bridge for legacy HP iLO",
+  "license": "AGPL-3.0-or-later",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/launcher.cjs",
+    "test": "node --test test/*.test.cjs"
+  },
+  "dependencies": {
+    "ilo-protocol": "1.0.0-beta",
+    "pngjs": "7.0.0",
+    "ws": "8.22.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ryancnelson/hp-ilo-genie.git"
+  },
+  "homepage": "https://github.com/ryancnelson/hp-ilo-genie#readme",
+  "bugs": {
+    "url": "https://github.com/ryancnelson/hp-ilo-genie/issues"
+  }
+}

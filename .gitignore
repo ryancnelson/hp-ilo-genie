@@ -1,0 +1,15 @@
+node_modules/
+.env
+*.token
+*.key
+*.pem
+data/
+dist/
+*.tar
+*.tar.gz
+!vendor/*.tar.gz
+.DS_Store
+.env.*
+*.crt
+/tls/
+/VERIFIED.md
